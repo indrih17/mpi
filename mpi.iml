@@ -11,16 +11,7 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar://$MODULE_DIR$/libs/mpi.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/libs/mpj.jar!/" />
+          <root url="jar://$MPJ_HOME$/lib/mpi.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
