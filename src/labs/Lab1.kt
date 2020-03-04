@@ -7,18 +7,22 @@ import stringify
 
 private const val TAG = 0
 
-fun main(args: Array<String>) = commWorld(args) { commWorld ->
+/**
+ * При запуске четного числа процессов, те из них, которые имеют чётный ранг,
+ * отправляют сообщение следующим по величине ранга процессам.
+ */
+fun main(args: Array<String>) = commWorld(args) { communicator ->
     val message = intArrayOf(42, 17)
-    val rank = commWorld.rank
-    val size = commWorld.size
+    val rank = communicator.rank
+    val size = communicator.size
 
     if (rank.isSendRank) {
         recipientRankOrNull(rank, size)?.let { recipientRank ->
-            commWorld.send(message, destination = recipientRank, tag = TAG)
+            communicator.send(message, destination = recipientRank, tag = TAG)
         }
     } else {
         senderRankOrNull(rank)?.let { senderRank ->
-            val received = commWorld.receive(message.size, source = senderRank, tag = TAG)
+            val received = communicator.receive(message.size, source = senderRank, tag = TAG)
             println("I'm rank: $rank! received: ${received.stringify()} from rank: $senderRank!")
         }
     }
