@@ -1,5 +1,3 @@
 # Default ignored files
-workspace.xml
 codeStyles
-libraries/KotlinJavaRuntime__2_.xml
-misc.xml
+workspace.xml
