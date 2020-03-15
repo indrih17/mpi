@@ -2,8 +2,8 @@ package labs
 
 import data.awaitAll
 import data.commWorld
+import data.Message
 import mapWithPrevious
-import data.stringify
 import data.centerRank
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -28,21 +28,21 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
             sortRankList
                 .map { communicator.asyncReceive(size = sortMessageSize.roundToInt(), source = it) }
                 .awaitAll()
-                .sortedArray()
-                .let { println("RESULT: ${it.stringify()}") }
+                .sorted()
+                .let { println("RESULT: $it") }
         }
         in sortRankList ->
             getReceiveRanksFor(rank, sortRankList)
                 .map { communicator.asyncReceive(size = everyMessageSize, source = it) }
                 .awaitAll()
-                .sortedArray()
+                .sorted()
                 .let { communicator.send(it, destination = centerRank) }
         else -> {
-            val message = IntArray(everyMessageSize) { Random.nextInt(from = 1, until = 100) }
+            val message = Message(everyMessageSize) { Random.nextInt(from = 1, until = 100) }
             val destination = getSortRankFor(rank, sortRankList)
             communicator
                 .send(message, destination = destination)
-                .let { println("SEND ${message.stringify()} FOR $rank to $destination") }
+                .let { println("SEND $message FOR $rank to $destination") }
         }
     }
 }

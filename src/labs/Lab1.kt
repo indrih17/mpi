@@ -4,7 +4,6 @@ import data.commWorld
 import data.messageOf
 import data.recipientRankOrNull
 import data.senderRankOrNull
-import data.stringify
 
 /**
  * При запуске четного числа процессов, те из них, которые имеют чётный ранг,
@@ -22,7 +21,7 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
     } else {
         senderRankOrNull(rank)?.let { senderRank ->
             val received = communicator.receive(message.size, source = senderRank)
-            println("I'm rank: $rank! received: ${received.stringify()} from rank: $senderRank!")
+            println("I'm rank: $rank! received: $received from rank: $senderRank!")
         }
     }
 }

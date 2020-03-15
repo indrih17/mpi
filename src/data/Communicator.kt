@@ -5,6 +5,7 @@ package data
 import mpi.Intracomm
 import mpi.MPI
 import mpi.Request
+import mpi.Status
 
 /** Запуск [MPI] и гарантированная отчистка ресурсов после завершения. */
 inline fun commWorld(args: Array<String>, block: (communicator: Communicator) -> Unit) {
@@ -44,7 +45,7 @@ inline class Communicator(val intracomm: Intracomm) {
         size: Int = message.size,
         offset: Int = 0
     ): Unit =
-        intracomm.Send(message, offset, size, MPI.INT, destination, tag)
+        intracomm.Send(message.intArray, offset, size, MPI.INT, destination, tag)
 
     /**
      * Получение сообщения.
@@ -57,7 +58,7 @@ inline class Communicator(val intracomm: Intracomm) {
         source: Int,
         tag: Int = mainTag
     ): Message =
-        message(size).also { intracomm.Recv(it, 0, size, MPI.INT, source, tag) }
+        Message(size).also { intracomm.Recv(it.intArray, 0, size, MPI.INT, source, tag) }
 
     /** Асинхронный вариант [send]. */
     inline fun asyncSend(
@@ -67,7 +68,7 @@ inline class Communicator(val intracomm: Intracomm) {
         size: Int = message.size,
         offset: Int = 0
     ): Request =
-        intracomm.Isend(message, offset, size, MPI.INT, destination, tag)
+        intracomm.Isend(message.intArray, offset, size, MPI.INT, destination, tag)
 
     /** Асинхронный вариант [receive]. */
     inline fun asyncReceive(
@@ -75,8 +76,12 @@ inline class Communicator(val intracomm: Intracomm) {
         source: Int,
         tag: Int = mainTag
     ): Pair<Message, Request> {
-        val arr = message(size)
-        val request = intracomm.Irecv(arr, 0, size, MPI.INT, source, tag)
-        return arr to request
+        val message = Message(size)
+        val request = intracomm.Irecv(message.intArray, 0, size, MPI.INT, source, tag)
+        return message to request
     }
+
+    /** Позволяет проверить входные сообщения без их реального приема. */
+    inline fun probe(source: Int, tag: Int = mainTag): Status =
+        intracomm.Probe(source, tag)
 }
