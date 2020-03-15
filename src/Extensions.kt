@@ -1,12 +1,5 @@
-@file:Suppress("NOTHING_TO_INLINE")
-
-/** [IntArray.toString] нормального человека. */
-inline fun IntArray.stringify(): String = toList().toString()
-
-/** @return Ранк кому доставить сообщение. Может не быть, если отправитель последний (size нечётный). */
-inline fun recipientRankOrNull(rank: Int, size: Int): Int? =
-    (rank + 1).takeIf { it < size }
-
-/** @return Ранк от кого получить сообщение. Может не быть, если получатель первый. */
-inline fun senderRankOrNull(rank: Int): Int? =
-    (rank - 1).takeIf { it >= 0 }
+/** Маппит список с учётом предыдущего элемента. */
+inline fun <T : Any, R> List<T>.mapWithPrevious(block: (prev: T, curr: T) -> R): List<R> {
+    var prev: T = firstOrNull() ?: return emptyList()
+    return minus(prev).map { curr -> block(prev, curr).also { prev = curr } }
+}

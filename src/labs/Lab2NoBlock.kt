@@ -1,11 +1,10 @@
 package labs
 
-import commWorld
-import recipientRankOrNull
-import senderRankOrNull
-
-private const val TAG = 0
-private const val centerRank = 0
+import data.commWorld
+import data.messageOf
+import data.senderRankOrNull
+import data.recipientRankOrNull
+import data.centerRank
 
 /**
  * Асинхронный вариант задачи.
@@ -15,13 +14,13 @@ private const val centerRank = 0
  * Пересылки по кольцу прекращаются, когда нулевой процессор просуммирует ранги всех процессоров.
  */
 fun main(args: Array<String>) = commWorld(args) { communicator ->
-    val message = intArrayOf(0)
+    val message = messageOf(0)
     val rank = communicator.rank
     val size = communicator.size
 
     if (rank != centerRank) {
         senderRankOrNull(rank)?.let { senderRank ->
-            val (messageReceive, request) = communicator.asyncReceive(message.size, source = senderRank, tag = TAG)
+            val (messageReceive, request) = communicator.asyncReceive(message.size, source = senderRank)
             println("I'm rank: $rank Without wait I received: ${if (messageReceive[0] != 0) "Something" else "Nothing"}")
             request.Wait()
             println("I'm rank: $rank With wait I received: ${if (messageReceive[0] != 0) "Something" else "Nothing"}")
@@ -29,11 +28,11 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
         }
     }
 
-    communicator.asyncSend(message, destination = recipientRankOrNull(rank, size) ?: centerRank, tag = TAG)
+    communicator.asyncSend(message, destination = recipientRankOrNull(rank, size) ?: centerRank)
 
     if (rank == centerRank) {
         val senderRank = senderRankOrNull(rank = size) ?: throw error("Size too small: $size")
-        val (messageReceive, request) = communicator.asyncReceive(message.size, source = senderRank, tag = TAG)
+        val (messageReceive, request) = communicator.asyncReceive(message.size, source = senderRank)
         request.Wait()
         println("My rank: $rank I got sum: ${messageReceive[centerRank]} from: $senderRank")
     }

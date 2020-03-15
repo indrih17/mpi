@@ -1,5 +1,7 @@
 @file:Suppress("NOTHING_TO_INLINE")
 
+package data
+
 import mpi.Intracomm
 import mpi.MPI
 import mpi.Request
@@ -14,6 +16,17 @@ inline fun commWorld(args: Array<String>, block: (communicator: Communicator) ->
     }
 }
 
+/** @return Ранк кому доставить сообщение. Может не быть, если отправитель последний (size нечётный). */
+inline fun recipientRankOrNull(rank: Int, size: Int): Int? =
+    (rank + 1).takeIf { it < size }
+
+/** @return Ранк от кого получить сообщение. Может не быть, если получатель первый. */
+inline fun senderRankOrNull(rank: Int): Int? =
+    (rank - 1).takeIf { it >= 0 }
+
+const val mainTag = 0
+const val centerRank = 0
+
 /** Обёртка над коммуникатором для использования в Kotlin style. */
 inline class Communicator(val intracomm: Intracomm) {
     val rank: Int get() = intracomm.Rank()
@@ -25,9 +38,9 @@ inline class Communicator(val intracomm: Intracomm) {
      * @param destination ранк, куда доставляется сообщение.
      */
     inline fun send(
-        message: IntArray,
+        message: Message,
         destination: Int,
-        tag: Int,
+        tag: Int = mainTag,
         size: Int = message.size,
         offset: Int = 0
     ): Unit =
@@ -35,23 +48,22 @@ inline class Communicator(val intracomm: Intracomm) {
 
     /**
      * Получение сообщения.
-     * @param messSize размер ожидаемого сообщения.
+     * @param size размер ожидаемого сообщения.
      * @param source ранк, откуда доставляется сообщение.
      * @return сообщение в виде массива чисел.
      */
     inline fun receive(
-        messSize: Int,
+        size: Int,
         source: Int,
-        tag: Int,
-        offset: Int = 0
-    ): IntArray =
-        IntArray(messSize).also { intracomm.Recv(it, offset, messSize, MPI.INT, source, tag) }
+        tag: Int = mainTag
+    ): Message =
+        message(size).also { intracomm.Recv(it, 0, size, MPI.INT, source, tag) }
 
     /** Асинхронный вариант [send]. */
     inline fun asyncSend(
-        message: IntArray,
+        message: Message,
         destination: Int,
-        tag: Int,
+        tag: Int = mainTag,
         size: Int = message.size,
         offset: Int = 0
     ): Request =
@@ -59,13 +71,12 @@ inline class Communicator(val intracomm: Intracomm) {
 
     /** Асинхронный вариант [receive]. */
     inline fun asyncReceive(
-        messSize: Int,
+        size: Int,
         source: Int,
-        tag: Int,
-        offset: Int = 0
-    ): Pair<IntArray, Request> {
-        val arr = IntArray(messSize)
-        val request = intracomm.Irecv(arr, offset, messSize, MPI.INT, source, tag)
+        tag: Int = mainTag
+    ): Pair<Message, Request> {
+        val arr = message(size)
+        val request = intracomm.Irecv(arr, 0, size, MPI.INT, source, tag)
         return arr to request
     }
 }
