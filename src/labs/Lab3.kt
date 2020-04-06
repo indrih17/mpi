@@ -3,8 +3,9 @@ package labs
 import data.awaitAll
 import data.commWorld
 import data.Message
-import mapWithPrevious
 import data.centerRank
+import data.merge
+import mapWithPrevious
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
@@ -28,6 +29,7 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
             sortRankList
                 .map { communicator.asyncReceive(size = sortMessageSize.roundToInt(), source = it) }
                 .awaitAll()
+                .merge()
                 .sorted()
                 .let { println("RESULT: $it") }
         }
@@ -35,6 +37,7 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
             getReceiveRanksFor(rank, sortRankList)
                 .map { communicator.asyncReceive(size = everyMessageSize, source = it) }
                 .awaitAll()
+                .merge()
                 .sorted()
                 .let { communicator.send(it, destination = centerRank) }
         else -> {

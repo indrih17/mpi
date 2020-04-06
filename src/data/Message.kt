@@ -29,5 +29,5 @@ inline class Message(val intArray: IntArray) {
 fun List<Message>.merge(): Message =
     fold(messageOf()) { acc, message -> acc + message }
 
-fun List<Pair<Message, Request>>.awaitAll(): Message =
-    map { (message, request) -> request.Wait(); message }.merge()
+fun List<Pair<Message, Request>>.awaitAll(): List<Message> =
+    map { (message, request) -> request.Wait(); message }
