@@ -1,4 +1,4 @@
-package labs
+package labs.lab1
 
 import data.commWorld
 import data.messageOf

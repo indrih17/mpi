@@ -1,10 +1,11 @@
-package labs
+package labs.lab3
 
-import data.awaitAll
+import awaitAllMessages
 import data.commWorld
 import data.Message
 import data.centerRank
 import data.merge
+import data.toMessage
 import mapWithPrevious
 import kotlin.math.roundToInt
 import kotlin.random.Random
@@ -28,7 +29,7 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
             val sortMessageSize = (workerRanksAmount * everyMessageSize) / sortRankList.size.toDouble()
             sortRankList
                 .map { communicator.asyncReceive(size = sortMessageSize.roundToInt(), source = it) }
-                .awaitAll()
+                .awaitAllMessages()
                 .merge()
                 .sorted()
                 .let { println("RESULT: $it") }
@@ -36,9 +37,10 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
         in sortRankList ->
             getReceiveRanksFor(rank, sortRankList)
                 .map { communicator.asyncReceive(size = everyMessageSize, source = it) }
-                .awaitAll()
+                .awaitAllMessages()
                 .merge()
                 .sorted()
+                .toMessage()
                 .let { communicator.send(it, destination = centerRank) }
         else -> {
             val message = Message(everyMessageSize) { Random.nextInt(from = 1, until = 100) }
