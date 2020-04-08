@@ -4,16 +4,14 @@ import mpi.Intracomm
 import mpi.MPI
 import mpi.Request
 import mpi.Status
+import mpi.Op
 import java.nio.ByteBuffer
 
 /** Запуск [MPI] и гарантированная отчистка ресурсов после завершения. */
 inline fun commWorld(args: Array<String>, block: (communicator: Communicator) -> Unit) {
     MPI.Init(args)
-    try {
-        block(Communicator(MPI.COMM_WORLD))
-    } finally {
-        MPI.Finalize()
-    }
+    block(Communicator(MPI.COMM_WORLD))
+    MPI.Finalize()
 }
 
 /** @return Ранк кому доставить сообщение. Может не быть, если отправитель последний (size нечётный). */
@@ -43,7 +41,7 @@ const val centerRank = 0
  */
 inline class Communicator(val intracomm: Intracomm) {
     val rank: Int get() = intracomm.Rank()
-    val size: Int get() = intracomm.Size()
+    val numberOfRanks: Int get() = intracomm.Size()
 
     /**
      * Блокирующая отправка сообщения.
@@ -53,11 +51,10 @@ inline class Communicator(val intracomm: Intracomm) {
     fun send(
         message: Message,
         destination: Int,
-        tag: Int = mainTag,
-        size: Int = message.size,
-        offset: Int = 0
-    ): Unit =
-        intracomm.Send(message, offset, size, MPI.INT, destination, tag)
+        tag: Int = mainTag
+    ) {
+        intracomm.Send(message, 0, message.size, MPI.INT, destination, tag)
+    }
 
     /**
      * Блокирующее получение сообщения.
@@ -82,11 +79,9 @@ inline class Communicator(val intracomm: Intracomm) {
     fun asyncSend(
         message: Message,
         destination: Int,
-        tag: Int = mainTag,
-        size: Int = message.size,
-        offset: Int = 0
+        tag: Int = mainTag
     ): Request =
-        intracomm.Isend(message, offset, size, MPI.INT, destination, tag)
+        intracomm.Isend(message, 0, message.size, MPI.INT, destination, tag)
 
     /** Асинхронный вариант [receive]. */
     fun asyncReceive(
@@ -110,14 +105,14 @@ inline class Communicator(val intracomm: Intracomm) {
     fun bufferSend(
         message: Message,
         destination: Int,
-        tag: Int = mainTag,
-        size: Int = message.size,
-        offset: Int = 0
+        tag: Int = mainTag
     ) {
-        val overhead = MPI.BSEND_OVERHEAD.takeIf { it != 0 } ?: size * 10
+        val size = message.size
+        val minOverhead = 15
+        val overhead = (MPI.BSEND_OVERHEAD.takeIf { it != 0 } ?: size * 10).takeIf { it >= minOverhead } ?: minOverhead
         val byteBuffer = ByteBuffer.allocate(size + overhead)
         MPI.Buffer_attach(byteBuffer)
-        intracomm.Bsend(message, offset, size, MPI.INT, destination, tag)
+        intracomm.Bsend(message, 0, size, MPI.INT, destination, tag)
         MPI.Buffer_detach() // блокирует работу процесса до тех пор, пока все сообщения, находящиеся в буфере, не будут обработаны
     }
 
@@ -135,11 +130,10 @@ inline class Communicator(val intracomm: Intracomm) {
     fun syncSend(
         message: Message,
         destination: Int,
-        tag: Int = mainTag,
-        size: Int = message.size,
-        offset: Int = 0
-    ): Unit =
-        intracomm.Ssend(message, offset, size, MPI.INT, destination, tag)
+        tag: Int = mainTag
+    ) {
+        intracomm.Ssend(message, 0, message.size, MPI.INT, destination, tag)
+    }
 
     /**
      * Отправка способом по готовности требует, чтобы прибыло уведомление "готов к получению".
@@ -161,9 +155,61 @@ inline class Communicator(val intracomm: Intracomm) {
     fun readySend(
         message: Message,
         destination: Int,
-        tag: Int = mainTag,
-        size: Int = message.size,
-        offset: Int = 0
-    ): Unit =
-        intracomm.Rsend(message, offset, size, MPI.INT, destination, tag)
+        tag: Int = mainTag
+    ) {
+        intracomm.Rsend(message, 0, message.size, MPI.INT, destination, tag)
+    }
+
+    /**
+     * Рассылка [message] всем процессам.
+     * По сути, [root] ранк просто раздаёт всем остальным ранкам копию [Message].
+     * @param root ранг главного процесса, выполняющего широковещательную рассылку.
+     */
+    fun broadcast(message: Message, root: Int): Message =
+        message.copyOf().also { new ->
+            intracomm.Bcast(new, 0, new.size, MPI.INT, root)
+        }
+
+    /**
+     * Если поток не явлется [root], то отправляет [message] в [root].
+     * Если поток является [root], получает от всех потоков подмесседжы, мержит их в [Message]
+     * и применяет операцию [operation], в результате чего получается msg с 1 значением.
+     */
+    fun reduce(
+        message: Message,
+        root: Int,
+        operation: Operation
+    ): Message {
+        val size: Int = message.size
+        val receive = Message(size)
+        intracomm.Reduce(message, 0, receive, 0, size, MPI.INT, operation.op, root)
+        return receive
+    }
+
+    /**
+     * Дробит [message] на равные подсообщения и отправляет каждому по сообщению.
+     * @throws IllegalStateException если невозможно каждому ранку дать по равному сообщению.
+     */
+    fun scatter(message: Message, root: Int): Message {
+        val subMessageSize = message.size / numberOfRanks
+        if (subMessageSize * numberOfRanks != message.size)
+            error("Неправильное соотношение размера и количества потоков.")
+        val receive = Message(subMessageSize)
+        intracomm.Scatter(message, 0, subMessageSize, MPI.INT, receive, 0, subMessageSize, MPI.INT, root)
+        return receive
+    }
+
+    /**
+     * Если поток не явлется [root], то отправляет [message] в [root].
+     * Если поток является [root], получает от всех потоков подмесседжы и мержит их в [Message].
+     */
+    fun gather(message: Message, root: Int): Message =
+        Message(numberOfRanks * message.size).also {
+            intracomm.Gather(message, 0, message.size, MPI.INT, it, 0, message.size, MPI.INT, root)
+        }
 }
+
+enum class Operation(val op: Op) {
+    Sum(MPI.SUM)
+}
+

@@ -12,7 +12,7 @@ import data.senderRankOrNull
 fun main(args: Array<String>) = commWorld(args) { communicator ->
     val message = messageOf(42, 17)
     val rank = communicator.rank
-    val size = communicator.size
+    val size = communicator.numberOfRanks
 
     if (rank.isSendRank) {
         recipientRankOrNull(rank, size)?.let { recipientRank ->

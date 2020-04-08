@@ -16,7 +16,7 @@ import data.centerRank
 fun main(args: Array<String>) = commWorld(args) { communicator ->
     val message = messageOf(0)
     val rank = communicator.rank
-    val size = communicator.size
+    val size = communicator.numberOfRanks
 
     if (rank != centerRank) {
         senderRankOrNull(rank)?.let { senderRank ->

@@ -20,7 +20,7 @@ private const val everyMessageSize = 1
  */
 fun main(args: Array<String>) = commWorld(args) { communicator ->
     val rank = communicator.rank
-    val size = communicator.size
+    val size = communicator.numberOfRanks
     val sortRankList = listOf(size / 2, size - 1)
 
     when (rank) {

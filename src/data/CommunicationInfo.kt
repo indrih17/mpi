@@ -1,26 +1,19 @@
-package labs.lab5
-
-import data.Communicator
+package data
 
 /** Информация, упрощающая работу при коммуникации между процессами. */
 class CommunicationInfo(communicator: Communicator, messageSize: Int) {
     /** Размер каждого каждого подсообщения, которое можно отослать другому ранку. */
     val subMessageSize: Int
 
-    /** Диапазон дополнительных сообщений. */
-    val subMessageRange: IntRange
-
-    /** Ранки, которые будут получать информацию. Не входят простаивающие ранки. */
+    /** Ранки, которые будут получать информацию. Не входят простаивающие ранки, которым нечем заняться. */
     val receivingRanks: IntRange
 
     init {
         assert(messageSize > 0)
-
-        subMessageSize = (messageSize / (communicator.size - 1).toDouble())
+        subMessageSize = (messageSize / communicator.numberOfRanks.toDouble())
             .let { if (it.decimalPart() > 0) it + 1 else it }
             .toInt()
-        subMessageRange = 1..subMessageSize
-        receivingRanks = 1..(messageSize / subMessageSize)
+        receivingRanks = 0..(messageSize / subMessageSize)
     }
 
     private fun Double.decimalPart(): Double =
