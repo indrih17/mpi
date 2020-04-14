@@ -21,3 +21,5 @@ fun Pair<Message, Request>.await(): Message {
 
 fun List<Pair<Message, Request>>.awaitAllMessages(): List<Message> =
     map(Pair<Message, Request>::await)
+
+inline fun <reified T> it(t: T): T = t

@@ -60,7 +60,10 @@ private fun mpi(args: Array<String>, send: SendFunction): Either<Failure, Durati
                 }
 
                 val normalResult = (vector1 * vector2).sum()
-                return if (timedResult.value == normalResult) Either.Right(timedResult.duration) else Either.Left(Failure)
+                return if (timedResult.value == normalResult)
+                    Either.Right(timedResult.duration)
+                else
+                    Either.Left(Failure(expected = normalResult, received = timedResult.value))
             }
             in commInfo.receivingRanks -> {
                 val count = communicator.probe(source = centerRank).getLength()

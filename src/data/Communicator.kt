@@ -210,6 +210,7 @@ inline class Communicator(val intracomm: Intracomm) {
 }
 
 enum class Operation(val op: Op) {
-    Sum(MPI.SUM)
+    Sum(MPI.SUM),
+    Max(MPI.MAX)
 }
 

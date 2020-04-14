@@ -21,7 +21,10 @@ fun scatter(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? {
 
         if (communicator.rank == centerRank) {
             val normalResult = (vector1 * vector2).sum()
-            return if (timedResult.value == normalResult) Either.Right(timedResult.duration) else Either.Left(Failure)
+            return if (timedResult.value == normalResult)
+                Either.Right(timedResult.duration)
+            else
+                Either.Left(Failure(expected = normalResult, received = timedResult.value))
         }
     }
     return null
