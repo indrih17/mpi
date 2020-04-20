@@ -7,7 +7,7 @@ import kotlin.time.measureTimedValue
 
 fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? {
     commWorld(args) { communicator ->
-        val commInfo = CommunicationInfo(communicator, vectorSize)
+        val commInfo = CommInfo(communicator, vectorSize)
 
         val vector1 = Message(vectorSize) { Random.nextInt(1, 10) }
         val vector2 = Message(vectorSize) { Random.nextInt(1, 10) }
@@ -36,7 +36,7 @@ fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? 
     return null
 }
 
-private fun Message.getSubMessageFor(commInfo: CommunicationInfo): Message {
+private fun Message.getSubMessageFor(commInfo: CommInfo): Message {
     val from = commInfo.rangeForRank.first
     val to = commInfo.rangeForRank.last
     return copyOfRange(from, to + 1)

@@ -1,4 +1,4 @@
-package labs.lab7
+package labs.lab8
 
 import data.*
 import graph.*
@@ -6,9 +6,9 @@ import it
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
 
-fun graphDiameter(args: Array<String>, graphSize: Int): Either<Failure, Duration>? {
-    val origin = randomIntGraph(oriented = false, size = graphSize).adjacencyMatrix()
-    commWorld(args) { communicator ->
+fun treeCheck(args: Array<String>, graphSize: Int): Either<Failure, Duration>? {
+    val origin = randomTreeGraph(oriented = true, size = graphSize).adjacencyMatrix()
+    /*commWorld(args) { communicator ->
         val rank = communicator.rank
         val commInfo = CommInfo(communicator, origin.size)
 
@@ -27,16 +27,16 @@ fun graphDiameter(args: Array<String>, graphSize: Int): Either<Failure, Duration
             } else {
                 null
             }
-            communicator.reduce(messageOf(maxValue ?: 0), centerRank, operation = Operation.Max).max() ?: 0
+            communicator.reduce(messageOf(maxValue ?: 0), centerRank, operation = Operation.Max).all {  } ?: 0
         }
         if (rank == centerRank) {
-            val normalResult = origin.diameter()
+            val normalResult = origin.isTree(origin.keys.first())
             return if (timedResult.value == normalResult)
                 Either.Right(timedResult.duration)
             else
                 Either.Left(Failure(expected = normalResult, received = timedResult.value))
         }
-    }
+    }*/
     return null
 }
 

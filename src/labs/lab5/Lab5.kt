@@ -39,7 +39,7 @@ fun main(args: Array<String>) {
 private fun mpi(args: Array<String>, send: SendFunction): Either<Failure, Duration>? {
     commWorld(args) { communicator ->
         val rank = communicator.rank
-        val commInfo = CommunicationInfo(communicator, vectorSize)
+        val commInfo = CommInfo(communicator, vectorSize)
         when (rank) {
             centerRank -> {
                 val vector1 = Message(vectorSize) { Random.nextInt(1, 10) }

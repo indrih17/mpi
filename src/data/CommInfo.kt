@@ -1,7 +1,7 @@
 package data
 
 /** Информация, упрощающая работу при коммуникации между процессами. */
-class CommunicationInfo(private val communicator: Communicator, private val messageSize: Int) {
+class CommInfo(private val communicator: Communicator, private val messageSize: Int) {
     /** Размер каждого каждого подсообщения, которое можно отослать другому ранку. */
     private val subMsgSizeRaw: Int = messageSize divideToUpper communicator.numberOfRanks
 
