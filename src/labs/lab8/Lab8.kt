@@ -4,13 +4,13 @@ import graph.*
 import kotlin.random.Random
 
 fun main(args: Array<String>) {
-    val graphSize = 10
+    val graphSize = 1000
     val graph = randomTreeGraph(oriented = false, size = graphSize)
     treeCheck(args, graph)?.let { either ->
         println(
             either.fold(
                 ifLeft = { "Ошибка: ${it.expected} vs ${it.received}" },
-                ifRight = { "Duration: ${it.duration}, ответ: ${it.value}" }
+                ifRight = { "Duration: ${it.duration.inMilliseconds}, ответ: ${it.value}" }
             )
         )
     }

@@ -8,7 +8,7 @@ class CommInfo(
     private val messageSize: Int,
     centralRankCollectsData: Boolean
 ) {
-    private val centerRankShift = if (centralRankCollectsData) 1 else 0
+    private val centerRankShift = if (communicator.numberOfRanks > 1 && centralRankCollectsData) 1 else 0
 
     /** Размер каждого каждого подсообщения, которое можно отослать другому ранку. */
     private val subMsgSizeRaw: Int =

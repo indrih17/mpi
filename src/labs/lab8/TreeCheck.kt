@@ -1,5 +1,6 @@
 package labs.lab8
 
+import await
 import data.*
 import graph.*
 import kotlin.time.TimedValue
@@ -8,10 +9,10 @@ import kotlin.time.measureTimedValue
 fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, TimedValue<Boolean>>? {
     commWorld(args) { communicator ->
         val rank = communicator.rank
+        val matrix = graph.adjacencyMatrix()
         val commInfo = CommInfo(communicator, graph.size, centralRankCollectsData = true)
 
         val timedResult: TimedValue<Boolean?> = measureTimedValue {
-            val matrix = graph.adjacencyMatrix()
             if (communicator.numberOfRanks == 1) {
                 matrix.isTree()
             } else {
@@ -22,12 +23,15 @@ fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, 
                             msgArray.map { communicator.send(it, destination = rank) }
                         }
 
+                        val depthSearchCondition = matrix.depthFirstSearch().size == graph.size
+
                         val edgesCount = commInfo
                             .receivingRanks
-                            .map { communicator.receive(source = it).single() }
+                            .map { communicator.asyncReceive(size = 1, source = it) }
+                            .map { it.await().single() }
                             .sum()
                             .let { if (matrix.oriented()) it else it / 2 }
-                        edgesCount == graph.size - 1 && matrix.depthFirstSearch().size == graph.size
+                        edgesCount == graph.size - 1 && depthSearchCondition
                     }
 
                     in commInfo.receivingRanks -> {
