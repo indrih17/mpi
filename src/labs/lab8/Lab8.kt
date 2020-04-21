@@ -8,8 +8,9 @@ import kotlin.random.Random
 import kotlin.time.Duration
 
 fun main(args: Array<String>) {
-    val graphSize = 7
-    treeCheck(args, graphSize)?.let { either ->
+    val graphSize = 14
+    val graph = randomTreeGraph(oriented = true, size = graphSize)
+    treeCheck(args, graph)?.let { either ->
         println(
             either.fold(
                 ifLeft = { "Ошибка: ${it.expected} vs ${it.received}" },

@@ -15,4 +15,4 @@ sealed class Either<out A, out B> {
     }
 }
 
-data class Failure(val expected: Int, val received: Int)
+data class Failure<T>(val expected: T, val received: T)

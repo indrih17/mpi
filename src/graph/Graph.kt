@@ -1,5 +1,9 @@
 package graph
 
+import java.util.LinkedList
+import java.util.Queue
+import kotlin.collections.ArrayList
+
 typealias Cost = Int
 typealias Level = Int
 
@@ -44,63 +48,53 @@ fun <T> Graph<T>.plus(first: Node<T>, second: Node<T>, cost: Cost): Graph<T> =
             .let { if (!oriented) it.plus(Edge(second, first, cost)) else it }
     )
 
+fun <T> Graph<T>.diameter(): Cost =
+    nodes.mapNotNull { node -> maxCost(node) }.maxBy { it } ?: 0
+
 fun <T> Graph<T>.maxCost(currentNode: Node<T>): Int? =
     breadthFirstSearch(currentNode)
         .maxBy { (_, pathData) -> pathData.cost }
         ?.let { (_, pathData) -> pathData.cost }
 
-fun <T> Graph<T>.breadthFirstSearch(
-    current: Node<T>,
-    level: Level = 0,
-    costFromPrevious: Cost = 0,
-    visited: List<Node<T>> = listOf(current)
-): Map<Node<T>, PathData> =
-    someFirstSearch(
-        current = current,
-        level = level,
-        costFromPrevious = costFromPrevious,
-        visited = visited,
-        calcNewVisited = { _, visitedNodes, unvisitedAtLevel -> visitedNodes + unvisitedAtLevel }
-    )
+fun <T> Graph<T>.breadthFirstSearch(current: Node<T>): Map<Node<T>, PathData> {
+    val visited = hashSetOf(current)
+    val queue: Queue<Node<T>> = LinkedList<Node<T>>().also { it.add(current) }
+    val result = hashMapOf(current to PathData(0, 0))
+    var subNodesLevel = 0
+    while (queue.isNotEmpty()) {
+        val node = queue.poll()
+        subNodesLevel++
+        val unvisitedAtLevel = edges(node = node)
+            .mapNotNull { edge -> (edge adjacentOrNull current)?.let { it to edge.cost } }
+            .filterNot { (node, _) -> visited.contains(node) }
+            .map { (node, cost) -> node to PathData(subNodesLevel, cost) }
+            .toMap()
+        unvisitedAtLevel.keys.let {
+            visited += it
+            queue += it
+        }
+        result += unvisitedAtLevel
+    }
+    return result
+}
 
 fun <T> Graph<T>.depthFirstSearch(
     current: Node<T>,
     level: Level = 0,
     costFromPrevious: Cost = 0,
     visited: List<Node<T>> = listOf(current)
-): Map<Node<T>, PathData> =
-    someFirstSearch(
-        current = current,
-        level = level,
-        costFromPrevious = costFromPrevious,
-        visited = visited,
-        calcNewVisited = { currentNode, visitedNodes, _ -> visitedNodes + currentNode }
-    )
-
-private fun <T> Graph<T>.someFirstSearch(
-    current: Node<T>,
-    level: Level = 0,
-    costFromPrevious: Cost = 0,
-    visited: List<Node<T>> = listOf(current),
-    calcNewVisited: (
-        current: Node<T>,
-        visited: List<Node<T>>,
-        unvisitedAtLevel: List<Node<T>>
-    ) -> List<Node<T>>
 ): Map<Node<T>, PathData> {
     val unvisitedAtLevel = edges(node = current)
         .mapNotNull { edge -> (edge adjacentOrNull current)?.let { it to edge.cost } }
         .filterNot { (node, _) -> visited.contains(node) }
     val result = mapOf(current to PathData(level, costFromPrevious))
-    val unvisitedNodes = unvisitedAtLevel.map { (node, _) -> node }
     return unvisitedAtLevel
         .map { (node, cost) ->
-            someFirstSearch(
+            depthFirstSearch(
                 current = node,
                 level = level + 1,
                 costFromPrevious = cost + costFromPrevious,
-                visited = calcNewVisited(node, visited, unvisitedNodes),
-                calcNewVisited = calcNewVisited
+                visited = visited + node
             )
         }
         .fold(result) { acc, new -> acc + new }

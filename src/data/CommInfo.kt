@@ -1,38 +1,54 @@
 package data
 
+import copyOfRange
+
 /** Информация, упрощающая работу при коммуникации между процессами. */
-class CommInfo(private val communicator: Communicator, private val messageSize: Int) {
+class CommInfo(
+    communicator: Communicator,
+    private val messageSize: Int,
+    centralRankCollectsData: Boolean
+) {
+    private val centerRankShift = if (centralRankCollectsData) 1 else 0
+
     /** Размер каждого каждого подсообщения, которое можно отослать другому ранку. */
-    private val subMsgSizeRaw: Int = messageSize divideToUpper communicator.numberOfRanks
+    private val subMsgSizeRaw: Int = messageSize / (communicator.numberOfRanks - centerRankShift)
 
     /** Ранки, которые будут получать информацию. Не входят простаивающие ранки, которым нечем заняться. */
-    val receivingRanks: IntRange = 0..(messageSize / subMsgSizeRaw)
+    val receivingRanks: IntRange = centerRankShift..(messageSize / subMsgSizeRaw)
 
     /** Умная версия [subMsgSizeRaw], которая отрезает лишнее. */
-    val subMessageSize: Int
-        get() {
-            val ranks = receivingRanks.toList().size
-            return if (communicator.rank == receivingRanks.last)
-                subMsgSizeRaw - (subMsgSizeRaw * ranks - messageSize)
-            else
-                subMsgSizeRaw
-        }
-
-    /** Промежуток индексов, который необходимо обработать текущему ранку. */
-    val rangeForRank: IntRange
-
-    init {
-        assert(messageSize > 0)
-        val from = communicator.rank * subMsgSizeRaw
-        val to = from + subMessageSize
-        rangeForRank = from until to
+    private fun subMessageSize(rank: Rank): Int {
+        val ranks = receivingRanks.toList().size
+        return if (rank == receivingRanks.last)
+            subMsgSizeRaw - (subMsgSizeRaw * ranks - messageSize)
+        else
+            subMsgSizeRaw
     }
 
-    private infix fun Int.divideToUpper(other: Int): Int =
-        (this / other.toDouble())
-            .let { if (it.decimalPart() > 0) it + 1 else it }
-            .toInt()
+    /** Промежуток индексов, который необходимо обработать текущему ранку. */
+    fun rangeForRank(rank: Rank): IntRange {
+        val from = (rank - centerRankShift) * subMsgSizeRaw
+        val to = from + subMessageSize(rank)
+        return from until to
+    }
 
-    private fun Double.decimalPart(): Double =
-        this - this.toInt()
+    init { assert(messageSize > 0) }
 }
+
+fun CommInfo.split(message: Message): Map<Rank, Message> =
+    receivingRanks
+        .map { rank ->
+            val range = rangeForRank(rank)
+            val msg = message.copyOfRange(range.first, range.last + 1)
+            rank to msg
+        }
+        .toMap()
+
+fun CommInfo.split(messages: Iterable<Message>): Map<Rank, List<Message>> =
+    receivingRanks
+        .map { rank ->
+            val range = rangeForRank(rank)
+            val msgList = messages.copyOfRange(range.first, range.last + 1)
+            rank to msgList
+        }
+        .toMap()

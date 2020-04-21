@@ -5,7 +5,7 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
 
-fun scatter(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? {
+fun scatter(args: Array<String>, vectorSize: Int): Either<Failure<Int>, Duration>? {
     commWorld(args) { communicator ->
         val vector1 = Message(vectorSize) { Random.nextInt(1, 10) }
         val vector2 = Message(vectorSize) { Random.nextInt(1, 10) }

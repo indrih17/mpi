@@ -1,26 +1,27 @@
 package labs.lab7
 
 import data.*
+import flatten
 import graph.*
 import it
+import split
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
 
-fun graphDiameter(args: Array<String>, graphSize: Int): Either<Failure, Duration>? {
-    val origin = randomIntGraph(oriented = false, size = graphSize).adjacencyMatrix()
+fun graphDiameter(args: Array<String>, graph: Graph<Int>): Either<Failure<Int>, Duration>? {
     commWorld(args) { communicator ->
         val rank = communicator.rank
-        val commInfo = CommInfo(communicator, origin.size)
+        val commInfo = CommInfo(communicator, graph.size, centralRankCollectsData = false)
 
         val timedResult = measureTimedValue {
-            val message = origin.toMessage()
+            val message = graph.adjacencyMatrix().toMessage()
             val matrix = communicator
                 .broadcast(message, centerRank)
-                .toAdjacencyMatrix(graphSize)
+                .toAdjacencyMatrix(graph.size)
 
             val maxValue = if (rank in commInfo.receivingRanks) {
                 commInfo
-                    .rangeForRank
+                    .rangeForRank(rank)
                     .map(matrix::maxCost)
                     .mapNotNull(::it)
                     .maxBy(::it)
@@ -30,7 +31,7 @@ fun graphDiameter(args: Array<String>, graphSize: Int): Either<Failure, Duration
             communicator.reduce(messageOf(maxValue ?: 0), centerRank, operation = Operation.Max).max() ?: 0
         }
         if (rank == centerRank) {
-            val normalResult = origin.diameter()
+            val normalResult = graph.diameter()
             return if (timedResult.value == normalResult)
                 Either.Right(timedResult.duration)
             else
@@ -40,26 +41,17 @@ fun graphDiameter(args: Array<String>, graphSize: Int): Either<Failure, Duration
     return null
 }
 
-private fun Map<Int, Int>.flatten(): List<Int> {
-    val result = ArrayList<Int>()
-    for ((k, v) in this) {
-        result.add(k)
-        result.add(v)
-    }
-    return result
-}
-
 private fun AdjacencyMatrix<Int>.toMessage(): Message =
     map { (first, map) -> listOf(first) + map.flatten() }
         .flatten()
         .toIntArray()
 
 private fun Message.toAdjacencyMatrix(graphSize: Int): AdjacencyMatrix<Int> =
-    split(1 + graphSize * 2) { arr ->
-        arr.first() to arr
-            .drop(1)
-            .toIntArray()
-            .split(2) { (node, cost) -> node to cost }
-            .toMap()
-    }
+    asIterable()
+        .split(1 + graphSize * 2) { arr ->
+            arr.first() to arr
+                .drop(1)
+                .split(2) { (node, cost) -> node to cost }
+                .toMap()
+        }
         .toMap()

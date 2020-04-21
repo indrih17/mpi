@@ -1,5 +1,9 @@
 package graph
 
+import java.util.LinkedList
+import java.util.Queue
+import kotlin.collections.HashMap
+
 typealias AdjacencyMatrix<T> = Map<T, Map<T, Cost>>
 
 fun <T> Graph<T>.adjacencyMatrix(): AdjacencyMatrix<T> =
@@ -37,58 +41,45 @@ fun <K, V> List<Pair<K, V>>.toMutableMap(): MutableMap<K, V> {
     return result
 }
 
-fun <T> AdjacencyMatrix<T>.breadthFirstSearch(
-    current: T,
-    level: Level = 0,
-    costFromPrevious: Cost = 0,
-    visited: List<T> = listOf(current)
-): Map<T, PathData> =
-    someFirstSearch(
-        current = current,
-        level = level,
-        costFromPrevious = costFromPrevious,
-        visited = visited,
-        calcNewVisited = { _, visitedNodes, unvisitedAtLevel -> visitedNodes + unvisitedAtLevel }
-    )
+fun <T> AdjacencyMatrix<T>.breadthFirstSearch(current: T): Map<T, PathData> {
+    val visited = hashSetOf(current)
+    val queue: Queue<T> = LinkedList<T>().also { it.add(current) }
+    val result = hashMapOf(current to PathData(0, 0))
+    var subNodesLevel = 0
+    while (queue.isNotEmpty()) {
+        val node = queue.poll()
+        subNodesLevel++
+        val unvisitedAtLevel = getValue(node)
+            .mapNotNull { (node, cost) -> if (cost != 0) node to cost else null }
+            .filterNot { (node, _) -> visited.contains(node) }
+            .map { (node, cost) -> node to PathData(subNodesLevel, cost) }
+            .toMap()
+        unvisitedAtLevel.keys.let {
+            visited += it
+            queue += it
+        }
+        result += unvisitedAtLevel
+    }
+    return result
+}
 
 fun <T> AdjacencyMatrix<T>.depthFirstSearch(
     current: T,
     level: Level = 0,
     costFromPrevious: Cost = 0,
     visited: List<T> = listOf(current)
-): Map<T, PathData> =
-    someFirstSearch(
-        current = current,
-        level = level,
-        costFromPrevious = costFromPrevious,
-        visited = visited,
-        calcNewVisited = { currentNode, visitedNodes, _ -> visitedNodes + currentNode }
-    )
-
-private fun <T> AdjacencyMatrix<T>.someFirstSearch(
-    current: T,
-    level: Level = 0,
-    costFromPrevious: Cost = 0,
-    visited: List<T> = listOf(current),
-    calcNewVisited: (
-        current: T,
-        visited: List<T>,
-        unvisited: List<T>
-    ) -> List<T>
 ): Map<T, PathData> {
     val unvisitedAtLevel = getValue(current)
         .mapNotNull { (node, cost) -> if (cost != 0) node to cost else null }
         .filterNot { (node, _) -> visited.contains(node) }
-    val unvisitedNodes = unvisitedAtLevel.map { (node, _) -> node }
     val result = mapOf(current to PathData(level, costFromPrevious))
     return unvisitedAtLevel
         .map { (node, cost) ->
-            someFirstSearch(
+            depthFirstSearch(
                 current = node,
                 level = level + 1,
                 costFromPrevious = cost + costFromPrevious,
-                visited = calcNewVisited(node, visited, unvisitedNodes),
-                calcNewVisited = calcNewVisited
+                visited = visited + node
             )
         }
         .fold(result) { acc, new -> acc + new }

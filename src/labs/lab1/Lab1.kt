@@ -20,7 +20,7 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
         }
     } else {
         senderRankOrNull(rank)?.let { senderRank ->
-            val received = communicator.receive(message.size, source = senderRank)
+            val received = communicator.receive(source = senderRank)
             println("I'm rank: $rank! received: $received from rank: $senderRank!")
         }
     }

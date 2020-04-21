@@ -2,64 +2,72 @@ package labs.lab8
 
 import data.*
 import graph.*
-import it
+import isEachItemUnique
+import toIndexedArray
 import kotlin.time.Duration
+import kotlin.time.TimedValue
 import kotlin.time.measureTimedValue
 
-fun treeCheck(args: Array<String>, graphSize: Int): Either<Failure, Duration>? {
-    val origin = randomTreeGraph(oriented = true, size = graphSize).adjacencyMatrix()
-    /*commWorld(args) { communicator ->
+private val errorMsg = listOf(-1)
+
+fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, Duration>? {
+    commWorld(args) { communicator ->
         val rank = communicator.rank
-        val commInfo = CommInfo(communicator, origin.size)
+        val commInfo = CommInfo(communicator, graph.size, centralRankCollectsData = true)
 
-        val timedResult = measureTimedValue {
-            val message = origin.toMessage()
-            val matrix = communicator
-                .broadcast(message, centerRank)
-                .toAdjacencyMatrix(graphSize)
-
-            val maxValue = if (rank in commInfo.receivingRanks) {
-                commInfo
-                    .rangeForRank
-                    .map(matrix::maxCost)
-                    .mapNotNull(::it)
-                    .maxBy(::it)
+        val timedResult: TimedValue<Boolean?> = measureTimedValue {
+            if (communicator.numberOfRanks == 1) {
+                graph.isTree(graph.nodes.first())
             } else {
-                null
+                when (rank) {
+                    centerRank -> {
+                        val matrix: Iterable<Message> = graph
+                            .adjacencyMatrix()
+                            .map { (first, edges) -> first to edges.toIndexedArray().toIntArray() }
+                            .toMap()
+                            .toIndexedArray()
+                            .asIterable()
+
+                        commInfo.split(matrix).map { (rank, msgArray) ->
+                            msgArray.map { communicator.send(it, destination = rank) }
+                        }
+
+                        commInfo
+                            .receivingRanks
+                            .map { communicator.receive(source = it).toList() }
+                            .flatten()
+                            .let { list -> list != errorMsg && list.isEachItemUnique() }
+                    }
+
+                    in commInfo.receivingRanks -> {
+                        val visitedNodes = commInfo
+                            .rangeForRank(rank)
+                            .map { communicator.receive(source = centerRank) }
+                            .map { msg ->
+                                msg
+                                    .mapIndexed { index, cost -> index to cost }
+                                    .mapNotNull { (node, cost) -> if (cost != 0) node else null }
+                                    .let { if (it.isEachItemUnique()) it else errorMsg }
+                            }
+                            .flatten()
+                        communicator.send(visitedNodes.toMessage(), centerRank)
+                        null
+                    }
+
+                    else -> {
+                        println("Ранк не используется: $rank")
+                        null
+                    }
+                }
             }
-            communicator.reduce(messageOf(maxValue ?: 0), centerRank, operation = Operation.Max).all {  } ?: 0
         }
         if (rank == centerRank) {
-            val normalResult = origin.isTree(origin.keys.first())
+            val normalResult = graph.isTree(graph.nodes.first())
             return if (timedResult.value == normalResult)
                 Either.Right(timedResult.duration)
             else
-                Either.Left(Failure(expected = normalResult, received = timedResult.value))
+                Either.Left(Failure(expected = normalResult, received = timedResult.value!!))
         }
-    }*/
+    }
     return null
 }
-
-private fun Map<Int, Int>.flatten(): List<Int> {
-    val result = ArrayList<Int>()
-    for ((k, v) in this) {
-        result.add(k)
-        result.add(v)
-    }
-    return result
-}
-
-private fun AdjacencyMatrix<Int>.toMessage(): Message =
-    map { (first, map) -> listOf(first) + map.flatten() }
-        .flatten()
-        .toIntArray()
-
-private fun Message.toAdjacencyMatrix(graphSize: Int): AdjacencyMatrix<Int> =
-    split(1 + graphSize * 2) { arr ->
-        arr.first() to arr
-            .drop(1)
-            .toIntArray()
-            .split(2) { (node, cost) -> node to cost }
-            .toMap()
-    }
-        .toMap()

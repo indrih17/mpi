@@ -20,7 +20,7 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
 
     if (rank != centerRank) {
         senderRankOrNull(rank)?.let { senderRank ->
-            val messageReceive = communicator.receive(message.size, source = senderRank)
+            val messageReceive = communicator.receive(source = senderRank)
             message[0] += messageReceive[0] + rank
         }
     }
@@ -29,7 +29,7 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
 
     if (rank == centerRank) {
         val senderRank = senderRankOrNull(rank = size) ?: throw error("Size too small: $size")
-        val messageReceive = communicator.receive(message.size, source = senderRank)
+        val messageReceive = communicator.receive(source = senderRank)
         println("My rank: $rank I got sum: ${messageReceive[centerRank]} from: $senderRank")
     }
 }

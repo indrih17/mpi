@@ -1,7 +1,6 @@
 package labs.lab5
 
 import data.*
-import getLength
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
@@ -36,25 +35,21 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun mpi(args: Array<String>, send: SendFunction): Either<Failure, Duration>? {
+private fun mpi(args: Array<String>, send: SendFunction): Either<Failure<Int>, Duration>? {
     commWorld(args) { communicator ->
         val rank = communicator.rank
-        val commInfo = CommInfo(communicator, vectorSize)
+        val commInfo = CommInfo(communicator, vectorSize, centralRankCollectsData = true)
         when (rank) {
             centerRank -> {
                 val vector1 = Message(vectorSize) { Random.nextInt(1, 10) }
                 val vector2 = Message(vectorSize) { Random.nextInt(1, 10) }
 
                 val timedResult = measureTimedValue {
-                    vector1.splitWithIterationNumber(step = commInfo.subMessageSize) { iteration, msg ->
-                        send(communicator, msg, iteration)
-                    }
-                    vector2.splitWithIterationNumber(step = commInfo.subMessageSize) { iteration, msg ->
-                        send(communicator, msg, iteration)
-                    }
+                    commInfo.split(vector1).map { (rank, msg) -> send(communicator, msg, rank) }
+                    commInfo.split(vector2).map { (rank, msg) -> send(communicator, msg, rank) }
                     commInfo
                         .receivingRanks
-                        .map { communicator.receive(size = 1, source = it) }
+                        .map { communicator.receive(source = it) }
                         .merge()
                         .sum()
                 }
@@ -66,9 +61,8 @@ private fun mpi(args: Array<String>, send: SendFunction): Either<Failure, Durati
                     Either.Left(Failure(expected = normalResult, received = timedResult.value))
             }
             in commInfo.receivingRanks -> {
-                val count = communicator.probe(source = centerRank).getLength()
-                val vector1 = communicator.receive(size = count, source = centerRank)
-                val vector2 = communicator.receive(size = count, source = centerRank)
+                val vector1 = communicator.receive(source = centerRank)
+                val vector2 = communicator.receive(source = centerRank)
                 send(communicator, messageOf((vector1 * vector2).sum()), centerRank)
             }
             else -> println("Ранк не используется: $rank")

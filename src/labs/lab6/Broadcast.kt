@@ -5,9 +5,10 @@ import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
 
-fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? {
+fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure<Int>, Duration>? {
     commWorld(args) { communicator ->
-        val commInfo = CommInfo(communicator, vectorSize)
+        val rank = communicator.rank
+        val commInfo = CommInfo(communicator, vectorSize, centralRankCollectsData = false)
 
         val vector1 = Message(vectorSize) { Random.nextInt(1, 10) }
         val vector2 = Message(vectorSize) { Random.nextInt(1, 10) }
@@ -16,8 +17,8 @@ fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? 
             val new1 = communicator.broadcast(vector1, centerRank)
             val new2 = communicator.broadcast(vector2, centerRank)
 
-            val subMsg1 = new1.getSubMessageFor(commInfo)
-            val subMsg2 = new2.getSubMessageFor(commInfo)
+            val subMsg1 = new1.getSubMessageFor(rank, commInfo)
+            val subMsg2 = new2.getSubMessageFor(rank, commInfo)
             val result = (subMsg1 * subMsg2).sum()
 
             communicator
@@ -25,7 +26,7 @@ fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? 
                 .sum()
         }
 
-        if (communicator.rank == centerRank) {
+        if (rank == centerRank) {
             val normalResult = (vector1 * vector2).sum()
             return if (timedResult.value == normalResult)
                 Either.Right(timedResult.duration)
@@ -36,8 +37,8 @@ fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure, Duration>? 
     return null
 }
 
-private fun Message.getSubMessageFor(commInfo: CommInfo): Message {
-    val from = commInfo.rangeForRank.first
-    val to = commInfo.rangeForRank.last
+private fun Message.getSubMessageFor(rank: Int, commInfo: CommInfo): Message {
+    val from = commInfo.rangeForRank(rank).first
+    val to = commInfo.rangeForRank(rank).last
     return copyOfRange(from, to + 1)
 }

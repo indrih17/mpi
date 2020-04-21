@@ -6,7 +6,8 @@ import kotlin.time.Duration
 
 fun main(args: Array<String>) {
     val graphSize = 10
-    graphDiameter(args, graphSize)?.let { either ->
+    val graph = randomIntGraph(oriented = false, size = graphSize)
+    graphDiameter(args, graph)?.let { either ->
         println(
             either.fold(
                 ifLeft = { "Ошибка: ${it.expected} vs ${it.received}" },

@@ -1,5 +1,6 @@
 package data
 
+import getLength
 import mpi.Intracomm
 import mpi.MPI
 import mpi.Request
@@ -15,15 +16,17 @@ inline fun commWorld(args: Array<String>, block: (communicator: Communicator) ->
 }
 
 /** @return Ранк кому доставить сообщение. Может не быть, если отправитель последний (size нечётный). */
-fun recipientRankOrNull(rank: Int, size: Int): Int? =
+fun recipientRankOrNull(rank: Rank, size: Int): Int? =
     (rank + 1).takeIf { it < size }
 
 /** @return Ранк от кого получить сообщение. Может не быть, если получатель первый. */
-fun senderRankOrNull(rank: Int): Int? =
+fun senderRankOrNull(rank: Rank): Int? =
     (rank - 1).takeIf { it >= 0 }
 
+typealias Rank = Int
+
 const val mainTag = 0
-const val centerRank = 0
+const val centerRank: Rank = 0
 
 /**
  * Обёртка над коммуникатором для использования в Kotlin style.
@@ -40,7 +43,7 @@ const val centerRank = 0
  * Таким образом, перед очередным использованием буфера сообщения программист должен проверить его статус.
  */
 inline class Communicator(val intracomm: Intracomm) {
-    val rank: Int get() = intracomm.Rank()
+    val rank: Rank get() = intracomm.Rank()
     val numberOfRanks: Int get() = intracomm.Size()
 
     /**
@@ -58,22 +61,15 @@ inline class Communicator(val intracomm: Intracomm) {
 
     /**
      * Блокирующее получение сообщения.
-     * @param size размер ожидаемого сообщения.
      * @param source ранк, откуда доставляется сообщение.
      * @return сообщение в виде массива чисел.
      *
      * Может принимать сообщения, отправленные в любом режиме.
-     *
-     * Значение параметра [size] может оказаться больше, чем количество элементов в принятом сообщении.
-     * В этом случае после выполнения приёма в буфере изменится значение только тех элементов,
-     * которые соответствуют элементам фактически принятого сообщения.
      */
-    fun receive(
-        size: Int,
-        source: Int,
-        tag: Int = mainTag
-    ): Message =
-        Message(size).also { intracomm.Recv(it, 0, size, MPI.INT, source, tag) }
+    fun receive(source: Int, size: Int? = null, tag: Int = mainTag): Message {
+        val count = size ?: probe(source = source).getLength()
+        return Message(count).also { intracomm.Recv(it, 0, count, MPI.INT, source, tag) }
+    }
 
     /** Асинхронный вариант [send]. */
     fun asyncSend(

@@ -3,7 +3,6 @@ package labs.lab4
 import data.Communicator
 import data.commWorld
 import data.messageOf
-import getLength
 
 fun main(args: Array<String>) = commWorld(args) { communicator ->
     when (communicator.rank) {
@@ -17,7 +16,6 @@ fun main(args: Array<String>) = commWorld(args) { communicator ->
 }
 
 private fun printReceiveWithProbe(communicator: Communicator, source: Int) {
-    val status = communicator.probe(source = source)
-    val message = communicator.receive(size = status.getLength(), source = source)
-    println("Rank = $source received: $message")
+    val message = communicator.receive(source = source)
+    println("Rank = $source received: ${message.contentToString()}")
 }
