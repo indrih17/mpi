@@ -1,10 +1,8 @@
 package labs.lab7
 
 import data.*
-import flatten
 import graph.*
 import it
-import split
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
 
@@ -17,7 +15,7 @@ fun graphDiameter(args: Array<String>, graph: Graph<Int>): Either<Failure<Int>, 
             val message = graph.adjacencyMatrix().toMessage()
             val matrix = communicator
                 .broadcast(message, centerRank)
-                .toAdjacencyMatrix(graph.size)
+                .toAdjacencyMatrix(graphSize = graph.size)
 
             val maxValue = if (rank in commInfo.receivingRanks) {
                 commInfo
@@ -40,18 +38,3 @@ fun graphDiameter(args: Array<String>, graph: Graph<Int>): Either<Failure<Int>, 
     }
     return null
 }
-
-private fun AdjacencyMatrix<Int>.toMessage(): Message =
-    map { (first, map) -> listOf(first) + map.flatten() }
-        .flatten()
-        .toIntArray()
-
-private fun Message.toAdjacencyMatrix(graphSize: Int): AdjacencyMatrix<Int> =
-    asIterable()
-        .split(1 + graphSize * 2) { arr ->
-            arr.first() to arr
-                .drop(1)
-                .split(2) { (node, cost) -> node to cost }
-                .toMap()
-        }
-        .toMap()

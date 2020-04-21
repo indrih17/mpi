@@ -33,9 +33,6 @@ fun <T> Map<T, T>.flatten(): List<T> {
     return result
 }
 
-inline fun <reified T> Map<Int, T>.toIndexedArray(): Array<T> =
-    Array(size) { this[it] ?: error("No found $it") }
-
 /**
  * Разбить вектор на подсписки размером [step] и трансформацией каждого списка в [R].
  * Если последний список меньше размером, то выдаётся таким.

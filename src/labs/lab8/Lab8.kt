@@ -1,20 +1,16 @@
 package labs.lab8
 
-import graph.Edge
-import graph.Graph
-import graph.Node
-import graph.createGraph
+import graph.*
 import kotlin.random.Random
-import kotlin.time.Duration
 
 fun main(args: Array<String>) {
-    val graphSize = 14
-    val graph = randomTreeGraph(oriented = true, size = graphSize)
+    val graphSize = 10
+    val graph = randomTreeGraph(oriented = false, size = graphSize)
     treeCheck(args, graph)?.let { either ->
         println(
             either.fold(
                 ifLeft = { "Ошибка: ${it.expected} vs ${it.received}" },
-                ifRight = Duration::inMilliseconds
+                ifRight = { "Duration: ${it.duration}, ответ: ${it.value}" }
             )
         )
     }

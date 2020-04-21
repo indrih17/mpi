@@ -2,44 +2,8 @@ package graph
 
 import java.util.LinkedList
 import java.util.Queue
-import kotlin.collections.HashMap
 
 typealias AdjacencyMatrix<T> = Map<T, Map<T, Cost>>
-
-fun <T> Graph<T>.adjacencyMatrix(): AdjacencyMatrix<T> =
-    edges
-        .groupBy { it.first }
-        .map { (node, edgesList) ->
-            val values = nodes.map { second ->
-                second.data to (edgesList.firstOrNull { it.second == second }?.cost ?: 0)
-            }
-            node.data to values.toMap()
-        }
-        .toMap()
-        .let { matrix ->
-            val nodesData = nodes.map { it.data }
-            val emptyNodes = nodesData - matrix.keys
-            matrix + emptyNodes.map { first -> first to nodesData.map { it to 0 }.toMap() }
-        }
-
-fun <T> AdjacencyMatrix<T>.filterReverted(): AdjacencyMatrix<T> {
-    val result = map { (first, edges) ->
-        first to edges.map { (second, _) -> second to 0 }.toMutableMap()
-    }.toMutableMap()
-    for ((first, edgesMap) in this) {
-        for ((second, cost) in edgesMap) {
-            result[second]?.let { edge -> if (edge[first] == 0) edge[first] = cost }
-        }
-    }
-    return result
-}
-
-fun <K, V> List<Pair<K, V>>.toMutableMap(): MutableMap<K, V> {
-    val result = HashMap<K, V>()
-    for ((first, second) in this)
-        result[first] = second
-    return result
-}
 
 fun <T> AdjacencyMatrix<T>.breadthFirstSearch(current: T): Map<T, PathData> {
     val visited = hashSetOf(current)
@@ -64,7 +28,7 @@ fun <T> AdjacencyMatrix<T>.breadthFirstSearch(current: T): Map<T, PathData> {
 }
 
 fun <T> AdjacencyMatrix<T>.depthFirstSearch(
-    current: T,
+    current: T = keys.first(),
     level: Level = 0,
     costFromPrevious: Cost = 0,
     visited: List<T> = listOf(current)
@@ -93,7 +57,11 @@ fun <T> AdjacencyMatrix<T>.maxCost(currentNode: T): Int? =
 fun <T> AdjacencyMatrix<T>.diameter(): Cost =
     keys.mapNotNull { node -> maxCost(node) }.maxBy { it } ?: 0
 
-fun <T> AdjacencyMatrix<T>.isTree(current: T): Boolean {
-    val edgesCount = filterReverted().map { (_, edges) -> edges.count { (_, cost) -> cost > 0 } }.sum()
-    return depthFirstSearch(current).size == size && edgesCount == size - 1
-}
+fun <T> AdjacencyMatrix<T>.isTree(): Boolean =
+    depthFirstSearch().size == size && (if (oriented()) edgesCount() else edgesCount() / 2) == size - 1
+
+fun <T> AdjacencyMatrix<T>.oriented(): Boolean =
+    any { (first, edges) -> edges.keys.any { second -> this[first]?.get(second) != this[second]?.get(first) } }
+
+fun <T> AdjacencyMatrix<T>.edgesCount(): Int =
+    map { (_, edges) -> edges.count { (_, cost) -> cost > 0 } }.sum()

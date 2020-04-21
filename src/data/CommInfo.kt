@@ -11,7 +11,11 @@ class CommInfo(
     private val centerRankShift = if (centralRankCollectsData) 1 else 0
 
     /** Размер каждого каждого подсообщения, которое можно отослать другому ранку. */
-    private val subMsgSizeRaw: Int = messageSize / (communicator.numberOfRanks - centerRankShift)
+    private val subMsgSizeRaw: Int =
+        if (messageSize >= communicator.numberOfRanks)
+            messageSize / (communicator.numberOfRanks - centerRankShift)
+        else
+            1
 
     /** Ранки, которые будут получать информацию. Не входят простаивающие ранки, которым нечем заняться. */
     val receivingRanks: IntRange = centerRankShift..(messageSize / subMsgSizeRaw)
@@ -32,7 +36,9 @@ class CommInfo(
         return from until to
     }
 
-    init { assert(messageSize > 0) }
+    init {
+        check(messageSize > 0)
+    }
 }
 
 fun CommInfo.split(message: Message): Map<Rank, Message> =

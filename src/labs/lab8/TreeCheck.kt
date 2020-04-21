@@ -2,55 +2,45 @@ package labs.lab8
 
 import data.*
 import graph.*
-import isEachItemUnique
-import toIndexedArray
-import kotlin.time.Duration
 import kotlin.time.TimedValue
 import kotlin.time.measureTimedValue
 
-private val errorMsg = listOf(-1)
-
-fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, Duration>? {
+fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, TimedValue<Boolean>>? {
     commWorld(args) { communicator ->
         val rank = communicator.rank
         val commInfo = CommInfo(communicator, graph.size, centralRankCollectsData = true)
 
         val timedResult: TimedValue<Boolean?> = measureTimedValue {
+            val matrix = graph.adjacencyMatrix()
             if (communicator.numberOfRanks == 1) {
-                graph.isTree(graph.nodes.first())
+                matrix.isTree()
             } else {
                 when (rank) {
                     centerRank -> {
-                        val matrix: Iterable<Message> = graph
-                            .adjacencyMatrix()
-                            .map { (first, edges) -> first to edges.toIndexedArray().toIntArray() }
-                            .toMap()
-                            .toIndexedArray()
-                            .asIterable()
-
-                        commInfo.split(matrix).map { (rank, msgArray) ->
+                        val messageIterable = matrix.map { (node, edges) -> mapOf(node to edges).toMessage() }
+                        commInfo.split(messageIterable).map { (rank, msgArray) ->
                             msgArray.map { communicator.send(it, destination = rank) }
                         }
 
-                        commInfo
+                        val edgesCount = commInfo
                             .receivingRanks
-                            .map { communicator.receive(source = it).toList() }
-                            .flatten()
-                            .let { list -> list != errorMsg && list.isEachItemUnique() }
+                            .map { communicator.receive(source = it).single() }
+                            .sum()
+                            .let { if (matrix.oriented()) it else it / 2 }
+                        edgesCount == graph.size - 1 && matrix.depthFirstSearch().size == graph.size
                     }
 
                     in commInfo.receivingRanks -> {
-                        val visitedNodes = commInfo
+                        val edgesCount = commInfo
                             .rangeForRank(rank)
                             .map { communicator.receive(source = centerRank) }
                             .map { msg ->
                                 msg
-                                    .mapIndexed { index, cost -> index to cost }
-                                    .mapNotNull { (node, cost) -> if (cost != 0) node else null }
-                                    .let { if (it.isEachItemUnique()) it else errorMsg }
+                                    .toAdjacencyMatrix(graph.size)
+                                    .edgesCount()
                             }
-                            .flatten()
-                        communicator.send(visitedNodes.toMessage(), centerRank)
+                            .sum()
+                        communicator.send(messageOf(edgesCount), centerRank)
                         null
                     }
 
@@ -64,7 +54,7 @@ fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, 
         if (rank == centerRank) {
             val normalResult = graph.isTree(graph.nodes.first())
             return if (timedResult.value == normalResult)
-                Either.Right(timedResult.duration)
+                Either.Right(TimedValue(value = normalResult, duration = timedResult.duration))
             else
                 Either.Left(Failure(expected = normalResult, received = timedResult.value!!))
         }

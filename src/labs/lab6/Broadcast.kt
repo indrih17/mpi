@@ -23,7 +23,7 @@ fun broadcast(args: Array<String>, vectorSize: Int): Either<Failure<Int>, Durati
 
             communicator
                 .reduce(messageOf(result), centerRank, operation = Operation.Sum)
-                .sum()
+                .single()
         }
 
         if (rank == centerRank) {

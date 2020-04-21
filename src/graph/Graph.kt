@@ -101,6 +101,6 @@ fun <T> Graph<T>.depthFirstSearch(
 }
 
 fun <T> Graph<T>.isTree(current: Node<T>): Boolean =
-    depthFirstSearch(current).size == nodes.size && edges.filterReverted().size == nodes.size - 1
+    depthFirstSearch(current).size == nodes.size && (if (oriented) edges.size else edges.size / 2) == nodes.size - 1
 
 fun <T> Graph<T>.edges(node: Node<T>) = edges.filter { edge -> edge isInclude node }
