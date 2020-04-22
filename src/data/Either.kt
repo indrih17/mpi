@@ -1,5 +1,7 @@
 package data
 
+import kotlin.time.TimedValue
+
 sealed class Either<out A, out B> {
     data class Left<T>(val value: T) : Either<T, Nothing>()
     data class Right<T>(val value: T) : Either<Nothing, T>()
@@ -16,3 +18,5 @@ sealed class Either<out A, out B> {
 }
 
 data class Failure<T>(val expected: T, val received: T)
+
+typealias ProgramResult<T> = Either<Failure<T>, TimedValue<T>>

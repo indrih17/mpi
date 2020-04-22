@@ -6,7 +6,7 @@ import graph.*
 import kotlin.time.TimedValue
 import kotlin.time.measureTimedValue
 
-fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, TimedValue<Boolean>>? {
+fun treeCheck(args: Array<String>, graph: Graph<Int>): ProgramResult<Boolean?>? {
     commWorld(args) { communicator ->
         val rank = communicator.rank
         val matrix = graph.adjacencyMatrix()
@@ -18,9 +18,9 @@ fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, 
             } else {
                 when (rank) {
                     centerRank -> {
-                        val messageIterable = matrix.map { (node, edges) -> mapOf(node to edges).toMessage() }
+                        val messageIterable = matrix.toMessageList()
                         commInfo.split(messageIterable).map { (rank, msgArray) ->
-                            msgArray.map { communicator.send(it, destination = rank) }
+                            msgArray.map { communicator.asyncSend(it, destination = rank) }
                         }
 
                         val depthSearchCondition = matrix.depthFirstSearch().size == graph.size
@@ -37,12 +37,8 @@ fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, 
                     in commInfo.receivingRanks -> {
                         val edgesCount = commInfo
                             .rangeForRank(rank)
-                            .map { communicator.receive(source = centerRank) }
-                            .map { msg ->
-                                msg
-                                    .toAdjacencyMatrix(graph.size)
-                                    .edgesCount()
-                            }
+                            .map { communicator.receive(source = centerRank).toEdgesMap() }
+                            .let { edgesList -> edgesList.map { msg -> msg.edgesCount() } }
                             .sum()
                         communicator.send(messageOf(edgesCount), centerRank)
                         null
@@ -56,12 +52,16 @@ fun treeCheck(args: Array<String>, graph: Graph<Int>): Either<Failure<Boolean>, 
             }
         }
         if (rank == centerRank) {
-            val normalResult = graph.isTree(graph.nodes.first())
+            val normalResult = graph.nodes.minBy { it.data }?.let(graph::isTree)
             return if (timedResult.value == normalResult)
                 Either.Right(TimedValue(value = normalResult, duration = timedResult.duration))
             else
-                Either.Left(Failure(expected = normalResult, received = timedResult.value!!))
+                Either.Left(Failure(expected = normalResult, received = timedResult.value))
         }
     }
     return null
 }
+
+private fun Map<Int, Cost>.edgesCount(): Int =
+    count { (_, cost) -> cost > 0 }
+

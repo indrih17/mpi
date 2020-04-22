@@ -1,6 +1,7 @@
 package labs.lab7
 
 import data.*
+import flatten
 import graph.*
 import it
 import kotlin.time.Duration
@@ -38,3 +39,18 @@ fun graphDiameter(args: Array<String>, graph: Graph<Int>): Either<Failure<Int>, 
     }
     return null
 }
+
+private fun AdjacencyMatrix<Int>.toMessage(): Message =
+    map { (first, map) -> listOf(first) + map.flatten() }
+        .flatten()
+        .toIntArray()
+
+private fun Message.toAdjacencyMatrix(graphSize: Int): AdjacencyMatrix<Int> =
+    toList()
+        .chunked(1 + graphSize * 2) { arr ->
+            arr.first() to arr
+                .drop(1)
+                .chunked(2) { (node, cost) -> node to cost }
+                .toMap()
+        }
+        .toMap()

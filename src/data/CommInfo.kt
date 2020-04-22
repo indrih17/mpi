@@ -1,6 +1,6 @@
 package data
 
-import copyOfRange
+import kotlin.math.min
 
 /** Информация, упрощающая работу при коммуникации между процессами. */
 class CommInfo(
@@ -18,7 +18,7 @@ class CommInfo(
             1
 
     /** Ранки, которые будут получать информацию. Не входят простаивающие ранки, которым нечем заняться. */
-    val receivingRanks: IntRange = centerRankShift..(messageSize / subMsgSizeRaw)
+    val receivingRanks: IntRange = centerRankShift..min((messageSize / subMsgSizeRaw), communicator.numberOfRanks - 1)
 
     /** Умная версия [subMsgSizeRaw], которая отрезает лишнее. */
     private fun subMessageSize(rank: Rank): Int {
@@ -58,3 +58,6 @@ fun CommInfo.split(messages: Iterable<Message>): Map<Rank, List<Message>> =
             rank to msgList
         }
         .toMap()
+
+private fun <T> Iterable<T>.copyOfRange(from: Int, to: Int): List<T> =
+    drop(from).take(to - from)

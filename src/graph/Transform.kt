@@ -2,7 +2,6 @@ package graph
 
 import data.Message
 import flatten
-import split
 
 fun <T> Graph<T>.adjacencyMatrix(): AdjacencyMatrix<T> =
     edges
@@ -20,17 +19,10 @@ fun <T> Graph<T>.adjacencyMatrix(): AdjacencyMatrix<T> =
             matrix + emptyNodes.map { first -> first to nodesData.map { it to 0 }.toMap() }
         }
 
-fun AdjacencyMatrix<Int>.toMessage(): Message =
-    map { (first, map) -> listOf(first) + map.flatten() }
-        .flatten()
-        .toIntArray()
+fun AdjacencyMatrix<Int>.toMessageList(): List<Message> =
+    values.map { map -> map.flatten().toIntArray() }
 
-fun Message.toAdjacencyMatrix(graphSize: Int): AdjacencyMatrix<Int> =
-    asIterable()
-        .split(1 + graphSize * 2) { arr ->
-            arr.first() to arr
-                .drop(1)
-                .split(2) { (node, cost) -> node to cost }
-                .toMap()
-        }
+fun Message.toEdgesMap(): Map<Int, Cost> =
+    toList()
+        .chunked(2) { (node, cost) -> node to cost }
         .toMap()
